@@ -2,7 +2,7 @@
 3 JavaScript helper functions required to wait for initialization of some objects before execution of process which requires initialized objects
 
 wReady() and doInit() functions.
-
+<code>
 /* wReady -- привязывает функцию к ближашему событию смены состояния документа.
    До загрузки кода — привязывается к document."DOMContentLoaded".
    После загрузки кода — к window."load".
@@ -37,3 +37,4 @@ wReady=function(f, wait_complete) { // вешаемся на ожидание ч
                2 -- ждём именно load, полную загрузку всего.
  */
 doInit=function(f, wait) {
+</code>
