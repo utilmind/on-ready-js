@@ -26,6 +26,12 @@
      завершения загрузки и на window."load" после загрузки. Событие не случится, ничего не произойдёт.
 
      Здесь переписываем код, чтобы он вешался на события современные текущему состоянию документа.
+
+
+   UPD 15.11.2019: Don't repeat my mistake, do not try to trigger onLoad event dynamically in uAJAX Navigator after the page loaded.
+     You still have to wait until the sub-resource will be loaded and only then perform some required initializaton.
+
+     So just hook onLoad event of the subresource (eg <script>), and be happy.
  */
 
 /* wReady -- привязывает функцию к ближашему событию смены состояния документа.
@@ -36,25 +42,28 @@
    Параметры:
      f -- функа, которая должна выполниться.
           При этом сама функа должна возвращать 1 (TRUE) если инициализация не удалась И функа должна быть отложена до следующего события.
-     wait_complete -- (не обязательный)
+     waitComplete -- (не обязательный)
  */
-wReady=function(f, wait_complete) { // вешаемся на ожидание чего либо. Без немедленного выполнения. (Немедленно выполняем только если все события уже миновали.)
+wReady = function(func, waitComplete) { // вешаемся на ожидание чего либо. Без немедленного выполнения. (Немедленно выполняем только если все события уже миновали.)
   var r = document.readyState;
   console.log("wReady: readyState is " + r);
-  if (!wait_complete && r == "loading") {
+
+  if (!waitComplete && r === "loading") {
     console.log("wReady: hooking onReady");
-    document.addEventListener("DOMContentLoaded", function(){
-      if (f(2/*ready || readyState == "interactive" */)) {
+    document.addEventListener("DOMContentLoaded", function() {
+      if (func(2/*ready || readyState == "interactive" */)) {
         console.log('wReady: wait till next action (complete load)')
-        wReady(f); // wait till next action (complete load)
+        wReady(func); // wait till next action (complete load)
       }
     })
-  }else if (r != "complete") { // == interactive
+
+  }else if (r !== "complete") { // == interactive (some sub-resources still loading)
     console.log("wReady: hooking onLoad");
-    window.addEventListener("load", function(){ f(3/*loaded || readyState == "complete" */); })
+    window.addEventListener("load", function(){ func(3/*loaded || readyState == "complete" */); })
+
   }else {
     console.log("wReady: nothing to hook. Just executing.");
-    f(3/*loaded || readyState =="complete" */); // execute imediately, since everything already fully loaded.
+    func(3/*loaded || readyState =="complete" */); // execute imediately, since everything already fully loaded.
   }
 }
 
@@ -78,13 +87,14 @@ wReady=function(f, wait_complete) { // вешаемся на ожидание чего либо. Без немед
                           Без такого сложного wait, минифицированный doInit выглядел бы так: doInit=function(f,w){(w||f(1))&&wReady(f,w>1)}
                2 -- ждём именно load, полную загрузку всего.
  */
-doInit=function(f, wait) {
-  console.trace('doInit '+wait)
+doInit = function(func, wait) {
+  console.trace('doInit '+ wait + ', readyState: ' + document.readyState)
   if (wait > 1 || // больше 1 ждём полюбому и всегда.
-     (wait && document.readyState == "loading") || // если 1 то ждём лишь на этапе loading.
-     f(1/*imediate start, no matter what stage*/)) // иначе запускаем функу без ожидания.
+     (wait && document.readyState === "loading") || // если 1 то ждём лишь на этапе loading.
+     func(1/*imediate start, no matter what stage*/)) { // иначе запускаем функу без ожидания.
       // BTW, f() returns 1 (TRUE) if initialization is not yet successful. So we must wait in wReady().
-    wReady(f, wait>1) // передаём f дальше. Там мы повесим функу на правильное событие. И функа будет вызвана с правильным параметром.
+    wReady(func, wait > 1); // передаём f дальше. Там мы повесим функу на правильное событие. И функа будет вызвана с правильным параметром.
+  }
 }
 //doInit=function(f,w){(w>1||(w&&document.readyState=="loading")||f(1))&&wReady(f,w>1)}
 
@@ -103,31 +113,34 @@ doInit=function(f, wait) {
                  (document.readyState == "interactive")
             3 -- запущено когда всё вообще на своих местах, все внешние скрипты, стили, картинки и вообще всё загружено.
                  (document.readyState == "complete")
-     always_run_f_onload	-- даже если что-то не инициализировалось в 3 попытки, всё равно запускать функу f() на этапе полной загрузки страницы.
+     alwaysRunFuncOnLoad	-- даже если что-то не инициализировалось в 3 попытки, всё равно запускать функу f() на этапе полной загрузки страницы.
                                    ...Так бывает, к примеру в инициализации баннера Фаворитов. Мы ждём shining-эффекта (пробегающего блика) для медали,
                                    но он не критичен для показа баннера. Поэтому, даже если не дождались jq-плагина с таким эффектом, всё равно
                                    показываем баннер, пусть даже без блика на медали.
  */
-jqWait=function(name, f, always_run_f_onload){
-  console.log('jqWaiting for '+name)
-  doInit(function(pass){
-    if (typeof $!="undefined" && typeof window[name]=="function") {
-      console.log('jqWaited '+name)
-      window[name]()
-    }else if ((pass < 3 || !always_run_f_onload)) {
+jqWait = function(name, func, alwaysRunFuncOnLoad) {
+  console.log('jqWaiting for '+name);
+
+  doInit(function(pass) {
+    if (typeof $ != "undefined" && typeof window[name] == "function") {
+      console.log('jqWaited '+name);
+      window[name]();
+
+    }else if ((pass < 3 || !alwaysRunFuncOnLoad)) {
       // -- start logging
-      var act = (pass == 1 ? 'imediately' : (pass == 2 ? 'document ready' : 'fully loaded'))
-      var log = ' no shit "'+name+'" (pass #'+pass+', '+act+'). Typeof: '+(typeof window[name])
-      if (pass == 3)
-        log = 'Still has'+log+'. (No shit at all? Misspelled or just an old script in cache?)'
-      else
-        log = 'Has'+log
-      console.log(log)
+      var act = (pass == 1 ? 'imediately' : (pass == 2 ? 'document ready' : 'fully loaded')),
+          log = ' no shit "'+name+'" (pass #'+pass+', '+act+'). Typeof: '+(typeof window[name]);
+
+      console.log(pass == 3 ?
+        'Still has' + log + '. (No shit at all? Misspelled or just an old script in cache?)' :
+        'Has' + log);
+
       // -- end logging
-      return 1
+      return 1;
     }else
-      console.log('jqWait: still no '+name+', but we have to go on')
-    if (f) f()
+      console.log('jqWait: still no '+name+', but we have to go on');
+
+    if (func) func();
   })
 }
 
