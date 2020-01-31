@@ -45,21 +45,29 @@
      waitComplete -- (не обязательный)
  */
 wReady = function(func, waitComplete) { // вешаемся на ожидание чего либо. Без немедленного выполнения. (Немедленно выполняем только если все события уже миновали.)
-  var r = document.readyState;
-  console.log("wReady: readyState is " + r);
+  var readyState = document.readyState;
+  console.log("wReady: readyState is " + readyState);
 
-  if (!waitComplete && r === "loading") {
+  if (!waitComplete && ("loading" === readyState)) {
     console.log("wReady: hooking onReady");
     document.addEventListener("DOMContentLoaded", function() {
       if (func(2/*ready || readyState == "interactive" */)) {
-        console.log('wReady: wait till next action (complete load)')
+        console.log("wReady: wait till next action (complete load)");
         wReady(func); // wait till next action (complete load)
       }
-    })
+    });
 
-  }else if (r !== "complete") { // == interactive (some sub-resources still loading)
+  }else if ("complete" !== readyState) { // == interactive (some sub-resources still loading)
     console.log("wReady: hooking onLoad");
-    window.addEventListener("load", function(){ func(3/*loaded || readyState == "complete" */); })
+    window.addEventListener("load", function(){ func(3/*loaded || readyState == "complete" */); });
+
+  }else if ("number" == typeof document.uLateLoad) { // custom property, custom event. See common.js, fillHtml(). Alternative is "undefined" != typeof document.uLateLoad.
+    console.log("wReady: hooking uLateLoad");
+    document.addEventListener("uLateLoad", function handleLateLoad() {
+      document.removeEventListener("uLateLoad", handleLateLoad); // remove itself
+      console.log("uLateLoad tiggered!");
+      func(3);
+    });
 
   }else {
     console.log("wReady: nothing to hook. Just executing.");
