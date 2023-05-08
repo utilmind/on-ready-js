@@ -136,7 +136,7 @@ jqWait = function(name, func, alwaysRunFuncOnLoad) {
 
     }else if ((pass < 3 || !alwaysRunFuncOnLoad)) {
       // -- start logging
-      var act = (pass == 1 ? 'imediately' : (pass == 2 ? 'document ready' : 'fully loaded')),
+      var act = (pass == 1 ? 'immediately' : (pass == 2 ? 'document ready' : 'fully loaded')),
           log = ' no shit "'+name+'" (pass #'+pass+', '+act+'). Typeof: '+(typeof window[name]);
 
       console.log(pass == 3 ?
