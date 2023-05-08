@@ -71,7 +71,7 @@ wReady = function(func, waitComplete) { // вешаемся на ожидани�
 
   }else {
     console.log("wReady: nothing to hook. Just executing.");
-    func(3/*loaded || readyState =="complete" */); // execute imediately, since everything already fully loaded.
+    func(3/*loaded || readyState =="complete" */); // execute immediately, since everything already fully loaded.
   }
 }
 
@@ -99,7 +99,7 @@ doInit = function(func, wait) {
   console.trace('doInit '+ wait + ', readyState: ' + document.readyState)
   if (wait > 1 || // больше 1 ждём полюбому и всегда.
      (wait && document.readyState === "loading") || // если 1 то ждём лишь на этапе loading.
-     func(1/*imediate start, no matter what stage*/)) { // иначе запускаем функу без ожидания.
+     func(1/*imemdiate start, no matter what stage*/)) { // иначе запускаем функу без ожидания.
       // BTW, f() returns 1 (TRUE) if initialization is not yet successful. So we must wait in wReady().
     wReady(func, wait > 1); // передаём f дальше. Там мы повесим функу на правильное событие. И функа будет вызвана с правильным параметром.
   }
